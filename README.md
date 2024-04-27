@@ -1,73 +1,51 @@
-# OOTDiffusion
-This repository is the official implementation of OOTDiffusion
+# Fork of [OOTDiffusion](https://github.com/levihsu/OOTDiffusion) with REST API for web app [find-your-style](https://github.com/lruns/find-your-style)
+Все про OOTDiffusion можете почитать в их [репозитории](https://github.com/levihsu/OOTDiffusion)
+А ради чего этот форк был создан можно посмотреть здесь [find-your-style](https://github.com/lruns/find-your-style).
 
-🤗 [Try out OOTDiffusion](https://huggingface.co/spaces/levihsu/OOTDiffusion)
+Самое главное: добавил с помощью библиотеки FastAPI возможность интегрировать веб приложение.
 
-(Thanks to [ZeroGPU](https://huggingface.co/zero-gpu-explorers) for providing A100 GPUs)
+ВАЖНО: ML модели очень большие (занимают как минимум около 30 Гб), нужно учитывать это при установке сервера!
+Также при первом запуске будет "прогревка", необходимо будет подождать 10 и более минут (в зависимости от мощности устройства).
+И также требуется огромные вычислительные ресурсы...
 
-<!-- Or [try our own demo](https://ootd.ibot.cn/) on RTX 4090 GPUs -->
+## Как установить, запустить и как пользоваться
 
-> **OOTDiffusion: Outfitting Fusion based Latent Diffusion for Controllable Virtual Try-on** [[arXiv paper](https://arxiv.org/abs/2403.01779)]<br>
-> [Yuhao Xu](http://levihsu.github.io/), [Tao Gu](https://github.com/T-Gu), [Weifeng Chen](https://github.com/ShineChen1024), [Chengcai Chen](https://www.researchgate.net/profile/Chengcai-Chen)<br>
-> Xiao-i Research
+Устанавливаем
 
-
-Our model checkpoints trained on [VITON-HD](https://github.com/shadow2496/VITON-HD) (half-body) and [Dress Code](https://github.com/aimagelab/dress-code) (full-body) have been released
-
-* 🤗 [Hugging Face link](https://huggingface.co/levihsu/OOTDiffusion) for ***checkpoints*** (ootd, humanparsing, and openpose)
-* 📢📢 We support ONNX for [humanparsing](https://github.com/GoGoDuck912/Self-Correction-Human-Parsing) now. Most environmental issues should have been addressed : )
-* Please also download [clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14) into ***checkpoints*** folder
-* We've only tested our code and models on Linux (Ubuntu 22.04)
-
-![demo](images/demo.png)&nbsp;
-![workflow](images/workflow.png)&nbsp;
-
-## Installation
-1. Clone the repository
-
-```sh
-git clone https://github.com/levihsu/OOTDiffusion
 ```
-
-2. Create a conda environment and install the required packages
-
-```sh
+git clone https://github.com/lruns/OOTDiffusion
+cd OOTDiffusion
 conda create -n ootd python==3.10
 conda activate ootd
 pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2
+pip install "uvicorn[standard]"
 pip install -r requirements.txt
 ```
 
-## Inference
-1. Half-body model
-
-```sh
-cd OOTDiffusion/run
-python run_ootd.py --model_path <model-image-path> --cloth_path <cloth-image-path> --scale 2.0 --sample 4
+Потом нужно загрузить модели (внимание, они большие!)
+```
+cd ..
+git clone https://huggingface.co/levihsu/OOTDiffusion OOTDiffusionModels
+mv ./OOTDiffusionModels/checkpoints ./OOTDiffusion/checkpoints
+cd ./OOTDiffusion/checkpoints
+git clone https://huggingface.co/openai/clip-vit-large-patch14
+cd ..
 ```
 
-2. Full-body model 
-
-> Garment category must be paired: 0 = upperbody; 1 = lowerbody; 2 = dress
-
-```sh
-cd OOTDiffusion/run
-python run_ootd.py --model_path <model-image-path> --cloth_path <cloth-image-path> --model_type dc --category 2 --scale 2.0 --sample 4
+Проверяем что работает (из-за того что в первый раз, будет долго отрабатываться)
+```
+cd run
+python run_ootd.py --model_path ./examples/model/01008_00.jpg --cloth_path ./examples/garment/00055_00.jpg --scale 2.0 --sample 1
 ```
 
-## Citation
+Запускаем веб сервер (по умолчанию порт 8000)
 ```
-@article{xu2024ootdiffusion,
-  title={OOTDiffusion: Outfitting Fusion based Latent Diffusion for Controllable Virtual Try-on},
-  author={Xu, Yuhao and Gu, Tao and Chen, Weifeng and Chen, Chengcai},
-  journal={arXiv preprint arXiv:2403.01779},
-  year={2024}
-}
+uvicorn web_server:app
 ```
 
-## TODO List
-- [x] Paper
-- [x] Gradio demo
-- [x] Inference code
-- [x] Model weights
-- [ ] Training code
+API состоит из 5 команд: 
+- две GET `/api/model/` и `/api/cloth/`, которые выдают список всех названий файлов моделей и одежды
+- две GET `/api/model/{filename}` и `/api/cloth/{filename}`, которые позволяют получить изображение модели или одежды
+- один POST `/api/try_on/`, который позволяет примерить на определенной модели определенную одежду
+
+Можно API протестировать по ссылке http://127.0.0.1:8000/docs
